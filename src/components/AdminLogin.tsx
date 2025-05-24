@@ -35,17 +35,17 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
             <span className="text-2xl">⚙️</span>
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Connexion Administrateur
+            Administration LevelUp
           </CardTitle>
           <p className="text-gray-600">
-            Accès aux outils d'administration
+            Accès réservé aux administrateurs
           </p>
         </CardHeader>
         
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email administrateur</Label>
               <Input
                 id="email"
                 type="email"
@@ -81,7 +81,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onBack }) => {
                   <span>Connexion...</span>
                 </div>
               ) : (
-                'Se connecter'
+                'Accéder au panel admin'
               )}
             </Button>
             
