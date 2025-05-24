@@ -19,6 +19,7 @@ interface JobOffer {
   salary: string;
   status: 'active' | 'inactive';
   applications: number;
+  type: 'stage' | 'bourse';
 }
 
 interface Candidate {
@@ -36,55 +37,72 @@ interface Candidate {
 const CompanyView: React.FC = () => {
   const [activeTab, setActiveTab] = useState('offers');
   const [isLoading, setIsLoading] = useState(false);
-  const [offers, setOffers] = useState<JobOffer[]>([
-    {
-      id: 1,
-      title: "Stage en développement web",
-      location: "Alger",
-      description: "Développement d'applications web modernes avec React et Node.js",
-      requirements: "Étudiant en informatique, connaissances en JavaScript",
-      salary: "15,000 DA/mois",
-      status: 'active',
-      applications: 3
-    }
-  ]);
 
-  const [candidates, setCandidates] = useState<Candidate[]>([
-    {
-      id: 1,
-      name: "Yasmine Benali",
-      email: "yasmine@levelup.com",
-      skills: ["JavaScript", "React", "Node.js", "HTML/CSS"],
-      appliedFor: "Stage en développement web",
-      status: 'pending',
-      appliedDate: "2024-01-15",
-      cvFile: "yasmine_benali_cv.pdf",
-      motivationLetter: "Je suis très motivée par cette opportunité de stage chez TechAlger. En tant qu'étudiante en informatique, je souhaite mettre en pratique mes connaissances en développement web..."
-    },
-    {
-      id: 2,
-      name: "Ahmed Khelil",
-      email: "ahmed.k@email.com",
-      skills: ["Python", "Django", "JavaScript", "SQL"],
-      appliedFor: "Stage en développement web",
-      status: 'pending',
-      appliedDate: "2024-01-14",
-      cvFile: "ahmed_khelil_cv.pdf",
-      motivationLetter: "Passionné par le développement web, je postule pour rejoindre votre équipe dynamique..."
+  // Get shared state from localStorage
+  const getOffers = (): JobOffer[] => {
+    const stored = localStorage.getItem('levelup_offers');
+    if (stored) {
+      return JSON.parse(stored);
     }
-  ]);
+    const defaultOffers = [
+      {
+        id: 1,
+        title: "Stage en développement web",
+        location: "Alger",
+        description: "Développement d'applications web modernes avec React et Node.js",
+        requirements: "Étudiant en informatique, connaissances en JavaScript",
+        salary: "15,000 DA/mois",
+        status: 'active' as const,
+        applications: 3,
+        type: 'stage' as const
+      }
+    ];
+    localStorage.setItem('levelup_offers', JSON.stringify(defaultOffers));
+    return defaultOffers;
+  };
+
+  const getCandidates = (): Candidate[] => {
+    const applications = localStorage.getItem('levelup_applications');
+    if (applications) {
+      const parsedApplications = JSON.parse(applications);
+      return parsedApplications.map((app: any, index: number) => ({
+        id: app.id || index + 1,
+        name: "Yasmine Benali",
+        email: "yasmine@levelup.com",
+        skills: ["JavaScript", "React", "Node.js", "HTML/CSS"],
+        appliedFor: app.offerTitle,
+        status: app.status === 'approuve' ? 'approved' : app.status === 'refuse' ? 'rejected' : 'pending',
+        appliedDate: app.appliedDate,
+        cvFile: "yasmine_benali_cv.pdf",
+        motivationLetter: "Je suis très motivée par cette opportunité de stage chez TechAlger. En tant qu'étudiante en informatique, je souhaite mettre en pratique mes connaissances en développement web..."
+      }));
+    }
+    return [];
+  };
+
+  const [offers, setOffers] = useState<JobOffer[]>(getOffers());
+  const [candidates, setCandidates] = useState<Candidate[]>(getCandidates());
 
   const [newOffer, setNewOffer] = useState({
     title: '',
     location: '',
     description: '',
     requirements: '',
-    salary: ''
+    salary: '',
+    type: 'stage' as 'stage' | 'bourse'
   });
+
+  // Refresh candidates when tab changes
+  React.useEffect(() => {
+    if (activeTab === 'candidates') {
+      setCandidates(getCandidates());
+    }
+  }, [activeTab]);
 
   const handleCandidateAction = (candidateId: number, action: 'approved' | 'rejected') => {
     setIsLoading(true);
     setTimeout(() => {
+      // Update local candidates state
       setCandidates(prev => 
         prev.map(candidate => 
           candidate.id === candidateId 
@@ -92,10 +110,23 @@ const CompanyView: React.FC = () => {
             : candidate
         )
       );
+
+      // Update applications in localStorage
+      const applications = localStorage.getItem('levelup_applications');
+      if (applications) {
+        const parsedApplications = JSON.parse(applications);
+        const updatedApplications = parsedApplications.map((app: any) => 
+          app.id === candidateId 
+            ? { ...app, status: action === 'approved' ? 'approuve' : 'refuse' }
+            : app
+        );
+        localStorage.setItem('levelup_applications', JSON.stringify(updatedApplications));
+      }
+
       setIsLoading(false);
       toast({
         title: action === 'approved' ? "Candidature approuvée!" : "Candidature refusée",
-        description: `La candidature a été ${action === 'approved' ? 'approuvée' : 'refusée'}.`,
+        description: `La candidature de Yasmine a été ${action === 'approved' ? 'approuvée' : 'refusée'}.`,
       });
     }, 1000);
   };
@@ -113,13 +144,17 @@ const CompanyView: React.FC = () => {
     setIsLoading(true);
     setTimeout(() => {
       const offer: JobOffer = {
-        id: offers.length + 1,
+        id: Date.now(),
         ...newOffer,
         status: 'active',
         applications: 0
       };
-      setOffers(prev => [...prev, offer]);
-      setNewOffer({ title: '', location: '', description: '', requirements: '', salary: '' });
+      
+      const updatedOffers = [...offers, offer];
+      setOffers(updatedOffers);
+      localStorage.setItem('levelup_offers', JSON.stringify(updatedOffers));
+      
+      setNewOffer({ title: '', location: '', description: '', requirements: '', salary: '', type: 'stage' });
       setIsLoading(false);
       toast({
         title: "Offre publiée!",
@@ -326,6 +361,19 @@ const CompanyView: React.FC = () => {
                     onChange={(e) => setNewOffer(prev => ({...prev, title: e.target.value}))}
                     className="mt-1"
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="type">Type d'offre</Label>
+                  <select
+                    id="type"
+                    value={newOffer.type}
+                    onChange={(e) => setNewOffer(prev => ({...prev, type: e.target.value as 'stage' | 'bourse'}))}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="stage">Stage</option>
+                    <option value="bourse">Bourse</option>
+                  </select>
                 </div>
 
                 <div>

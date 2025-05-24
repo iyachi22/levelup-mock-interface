@@ -36,11 +36,20 @@ const StudentView: React.FC = () => {
     cv: '',
     motivationLetter: ''
   });
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [activeTab, setActiveTab] = useState('offers');
 
-  const offerSets = [
-    [
+  // Get shared state from localStorage
+  const getApplications = (): Application[] => {
+    const stored = localStorage.getItem('levelup_applications');
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const getOffers = (): Offer[] => {
+    const stored = localStorage.getItem('levelup_offers');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Default offers
+    const defaultOffers = [
       {
         id: 1,
         title: "Stage en développement web",
@@ -51,30 +60,18 @@ const StudentView: React.FC = () => {
         requirements: "Étudiant en informatique, connaissances en JavaScript, React souhaité",
         salary: "15,000 DA/mois"
       }
-    ],
+    ];
+    localStorage.setItem('levelup_offers', JSON.stringify(defaultOffers));
+    return defaultOffers;
+  };
+
+  const [applications, setApplications] = useState<Application[]>(getApplications());
+  const [activeTab, setActiveTab] = useState('offers');
+
+  const offerSets = [
+    getOffers(),
     [],
-    [
-      {
-        id: 2,
-        title: "Bourse Erasmus+",
-        location: "France",
-        company: "Union Européenne",
-        type: "bourse" as const,
-        description: "Programme d'échange universitaire en Europe. Une opportunité unique d'étudier à l'étranger!",
-        requirements: "Étudiant en licence ou master, niveau B2 en français/anglais",
-        salary: "800€/mois + frais de voyage"
-      },
-      {
-        id: 3,
-        title: "Stage Data Science",
-        location: "Oran",
-        company: "DataCorp",
-        type: "stage" as const,
-        description: "Analyse de données et machine learning pour des projets innovants",
-        requirements: "Étudiant en informatique/mathématiques, Python, SQL",
-        salary: "18,000 DA/mois"
-      }
-    ]
+    getOffers()
   ];
 
   const refreshOffers = () => {
@@ -102,14 +99,17 @@ const StudentView: React.FC = () => {
     setIsLoading(true);
     setTimeout(() => {
       const newApplication: Application = {
-        id: applications.length + 1,
+        id: Date.now(),
         offerTitle: offer.title,
         company: offer.company,
         status: 'en-attente',
         appliedDate: new Date().toLocaleDateString('fr-FR')
       };
       
-      setApplications(prev => [...prev, newApplication]);
+      const updatedApplications = [...applications, newApplication];
+      setApplications(updatedApplications);
+      localStorage.setItem('levelup_applications', JSON.stringify(updatedApplications));
+      
       setIsLoading(false);
       toast({
         title: "Candidature envoyée avec succès!",
@@ -119,6 +119,13 @@ const StudentView: React.FC = () => {
       setActiveTab('applications');
     }, 2000);
   };
+
+  // Refresh applications from localStorage when tab changes
+  React.useEffect(() => {
+    if (activeTab === 'applications') {
+      setApplications(getApplications());
+    }
+  }, [activeTab]);
 
   const currentOffers = offerSets[currentOfferSet];
 
